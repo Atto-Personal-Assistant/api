@@ -2,23 +2,24 @@ import librosa
 import numpy as np
 import soundfile as sf
 
+from fastapi.responses import FileResponse
 
 from app.interactors.neural_network_interactor import NeuralNetwork
 
 
 class PostUseNeuralNetworkResponseModel:
-    def __init__(self, file_fullname_path: str):
-        self.file_fullname_path = file_fullname_path
+    def __init__(self, file_fullname: str):
+        self.file_fullname = file_fullname
 
     def __call__(self):
-        return {
-            "file_fullname_path": self.file_fullname_path
-        }
+        return {"file_path": self.file_fullname}
 
 
 class PostUseNeuralNetworkRequestModel:
     def __init__(self,
+                 nn: NeuralNetwork,
                  bytes_audio: bytes,):
+        self.nn = nn
         self.bytes_audio = bytes_audio
         self.file_name = "audio"
         self.file_type = "wav"
@@ -66,13 +67,12 @@ class PostUseNeuralNetworkInteractor:
         return (arr - min_val) / (max_val - min_val)
 
     def _use_neural_network(self,
+                            nn: NeuralNetwork,
                             sample_rate: int,
                             list_inputs: list[int],):
-        nn = NeuralNetwork(2, 3, 2)
         predict = nn.predict(list_inputs)
-        audio_synthesized = np.random.randn(len(predict))
         file_fullname = f'{self.request.file_name}_response.{self.request.file_type}'
-        sf.write(file_fullname, audio_synthesized, sample_rate)
+        sf.write(file_fullname, predict, sample_rate)
         return file_fullname
 
     def run(self):
@@ -89,10 +89,9 @@ class PostUseNeuralNetworkInteractor:
         )
         list_audio_normalized = self.normalize_values(list_audio)
         file_fullname_path = self._use_neural_network(
+            nn=self.request.nn,
             list_inputs=list_audio_normalized,
             sample_rate=self.request.sample_rate,
         )
-        response = PostUseNeuralNetworkResponseModel(
-            file_fullname_path=file_fullname_path,
-        )
+        response = PostUseNeuralNetworkResponseModel(file_fullname_path)
         return response
