@@ -12,7 +12,7 @@ class PostUseNeuralNetworkResponseModel:
         self.file_fullname = file_fullname
 
     def __call__(self):
-        return {"file_path": self.file_fullname}
+        return {"file_path": f'static/{self.file_fullname}'}
 
 
 class PostUseNeuralNetworkRequestModel:
@@ -35,13 +35,13 @@ class PostUseNeuralNetworkInteractor:
     def _save_audio(
             file_fullname: str,
             bytes_audio: bytes,):
-        with open(file_fullname, "wb") as file:
+        with open(f'static/{file_fullname}', "wb") as file:
             file.write(bytes_audio)
 
     @staticmethod
     def _load_audio(file_fullname: str):
         try:
-            audio_data, sr = librosa.load(file_fullname)
+            audio_data, sr = librosa.load(f'static/{file_fullname}')
             return audio_data, sr
 
         except Exception as error:
