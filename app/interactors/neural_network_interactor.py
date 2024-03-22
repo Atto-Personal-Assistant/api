@@ -34,7 +34,7 @@ class NeuralNetwork:
 
         self.learning_rate = learning_rate
 
-    def train(self, input_arr, target):
+    def train(self, input_arr, input_arr_expected):
         input_matrix = Matrix.array_to_matrix(input_arr)
 
         # INPUT TO HIDDEN #
@@ -50,7 +50,7 @@ class NeuralNetwork:
         # BACK PROPAGATION #
 
         # OUTPUT -> HIDDEN #
-        expected = Matrix.array_to_matrix(target)
+        expected = Matrix.array_to_matrix(input_arr_expected)
         output_error = Matrix.subtract(expected, output)
         derivative_output = Matrix.static_map(output, derivative_sigmoid)
 

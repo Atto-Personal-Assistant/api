@@ -2,7 +2,6 @@ import librosa
 import numpy as np
 import soundfile as sf
 
-from fastapi.responses import FileResponse
 
 from app.interactors.neural_network_interactor import NeuralNetwork
 
