@@ -3,6 +3,7 @@ import numpy as np
 
 
 from app.interactors.neural_network_interactor import NeuralNetwork
+from app.interactors.audio_interactor import AudioInteractor
 
 
 class PostTrainNeuralNetworkResponseModel:
@@ -15,10 +16,12 @@ class PostTrainNeuralNetworkResponseModel:
 
 class PostTrainNeuralNetworkRequestModel:
     def __init__(self,
-                 nn: NeuralNetwork,
+                 neural_network_interactor: NeuralNetwork,
+                 audio_interactor: AudioInteractor,
                  input_audio_bytes: bytes,
                  output_audio_bytes: bytes,):
-        self.nn = nn
+        self.neural_network_interactor = neural_network_interactor
+        self.audio_interactor = audio_interactor
         self.input_audio_bytes = input_audio_bytes
         self.output_audio_bytes = output_audio_bytes
 
@@ -36,30 +39,37 @@ class PostTrainNeuralNetworkInteractor:
         self.request = request
 
     @staticmethod
+    def _mount_path_to_voice_folder(url: str):
+        return f'static/{url}'
+
+    @staticmethod
     def _save_audio(
-            file_fullname: str,
+            file_path: str,
             bytes_audio: bytes,):
-        with open(f'static/{file_fullname}', "wb") as file:
+        with open(file_path, "wb") as file:
             file.write(bytes_audio)
 
     @staticmethod
     def _load_audio(file_fullname: str):
         try:
-            audio_data, sr = librosa.load(f'static/{file_fullname}')
-            return audio_data, sr
+            audio_data, simple_rate = librosa.load(f'static/{file_fullname}')
+
+            number_dimensions = audio_data.ndim
+
+            return audio_data, simple_rate, number_dimensions
 
         except Exception as error:
             print("Erro ao carregar o arquivo de áudio:", error)
 
     @staticmethod
-    def extract_features(
+    def extract_mfcc(
             audio_data,
-            sr,
+            simple_rate,
             n_mfcc: int = 13):
         mfccs = librosa.feature.mfcc(
             y=audio_data,
             n_mfcc=n_mfcc,
-            sr=sr,
+            sr=simple_rate,
         )
         return np.mean(mfccs.T, axis=0)
 
@@ -78,26 +88,29 @@ class PostTrainNeuralNetworkInteractor:
 
     def run(self):
         self._save_audio(
-            self.request.input_file_fullname, self.request.input_audio_bytes,)
+            self._mount_path_to_voice_folder(
+                self.request.input_file_fullname), self.request.input_audio_bytes,)
         self._save_audio(
-            self.request.output_file_fullname, self.request.output_audio_bytes,)
+            self._mount_path_to_voice_folder(
+                self.request.output_file_fullname), self.request.output_audio_bytes,)
 
-        input_audio_data, input_sr = self._load_audio(
+        input_audio_data, input_simple_rate, input_number_dimensions = self._load_audio(
             self.request.input_file_fullname,)
-        output_audio_data, output_sr = self._load_audio(
+        output_audio_data, output_simple_rate, output_number_dimensions = self._load_audio(
             self.request.output_file_fullname,)
 
-        input_list_audio = self.extract_features(input_audio_data, input_sr)
-        output_list_audio = self.extract_features(output_audio_data, output_sr)
+        input_list_audio = self.extract_mfcc(input_audio_data, input_simple_rate,)
+        output_list_audio = self.extract_mfcc(output_audio_data, output_simple_rate,)
 
         input_list_audio_normalized = self.normalize_values(input_list_audio)
         output_list_audio_normalized = self.normalize_values(output_list_audio)
 
-        print("input_list_audio_normalized", input_list_audio_normalized)
-        print("output_list_audio_normalized", output_list_audio_normalized)
+        self.request.neural_network_interactor.input_nodes = input_number_dimensions
+        # self.request.neural_network_interactor.hidden_nodes = /* Can be custom, change the learning */
+        # self.request.neural_network_interactor.output_nodes = input_number_dimensions
 
         self._train_neural_network(
-            nn=self.request.nn,
+            nn=self.request.neural_network_interactor,
             input_list_audio_normalized=input_list_audio_normalized,
             output_list_audio_normalized=output_list_audio_normalized,
         )
