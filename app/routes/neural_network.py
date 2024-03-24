@@ -18,8 +18,6 @@ from app.interactors.post_use_neural_network_interactor import (
 )
 
 
-neural_network_interactor = NeuralNetwork(2, 3, 2)
-
 router = APIRouter(prefix="/neural-network")
 
 
@@ -27,7 +25,6 @@ router = APIRouter(prefix="/neural-network")
 async def post_use_neural_network(audio: UploadFile = File(...)) -> Dict[str, str]:
     bytes_audio = await audio.read()
     request = PostUseNeuralNetworkRequestModel(
-        neural_network_interactor=neural_network_interactor,
         audio_interactor=AudioInteractor(),
         bytes_audio=bytes_audio,
     )
@@ -49,7 +46,6 @@ async def post_train_neural_network(
         input_audio_bytes=input_audio_bytes,
         output_audio_bytes=output_audio_bytes,
         audio_interactor=AudioInteractor(),
-        neural_network_interactor=neural_network_interactor,
     )
     interactor = PostTrainNeuralNetworkInteractor(request)
 

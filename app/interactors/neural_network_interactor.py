@@ -1,3 +1,4 @@
+import json
 import math
 
 from app.interactors.matrix_interactor import Matrix
@@ -34,7 +35,7 @@ class NeuralNetwork:
 
         self.learning_rate = learning_rate
 
-    def train(self, input_arr, input_arr_expected):
+    def feed_forward(self, input_arr):
         input_matrix = Matrix.array_to_matrix(input_arr)
 
         # INPUT TO HIDDEN #
@@ -46,11 +47,18 @@ class NeuralNetwork:
         output = Matrix.multiply(self.weights_hidden_to_output, hidden)
         output = Matrix.add(output, self.bias_hidden_to_output)
         output.map(sigmoid)
+        return output, hidden, input_matrix
+
+    def train(self, input_arr, input_arr_expected):
+        # FEED FORWARD #
+        output, hidden, input_matrix = self.feed_forward(input_arr)
 
         # BACK PROPAGATION #
 
         # OUTPUT -> HIDDEN #
         expected = Matrix.array_to_matrix(input_arr_expected)
+        print("expected", expected.data)
+        print("output", output.data)
         output_error = Matrix.subtract(expected, output)
         derivative_output = Matrix.static_map(output, derivative_sigmoid)
 
@@ -94,18 +102,41 @@ class NeuralNetwork:
         )
 
     def predict(self, input_arr):
-        input_matrix = Matrix.array_to_matrix(input_arr)
+        output, _, __ = self.feed_forward(input_arr)
 
-        # INPUT TO HIDDEN #
-        hidden = Matrix.multiply(self.weights_input_to_hidden, input_matrix)
-        hidden = Matrix.add(hidden, self.bias_input_to_hidden)
-        hidden.map(sigmoid)
+        print("data", output.data)
+        return output.data
 
-        # HIDDEN TO OUTPUT #
-        output = Matrix.multiply(self.weights_hidden_to_output, hidden)
-        output = Matrix.add(output, self.bias_hidden_to_output)
-        output.map(sigmoid)
+    def save(self, file_path: str):
+        nn_parameters = {
+            'input_nodes': self.input_nodes,
+            'hidden_nodes': self.hidden_nodes,
+            'output_nodes': self.output_nodes,
+            'learning_rate': self.learning_rate,
+            'weights_input_to_hidden': self.weights_input_to_hidden.data,
+            'weights_hidden_to_output': self.weights_hidden_to_output.data,
+            'bias_input_to_hidden': self.bias_input_to_hidden.data,
+            'bias_hidden_to_output': self.bias_hidden_to_output.data
+        }
 
-        output = Matrix.matrix_to_array(output)
+        with open(file_path, 'w') as file:
+            json.dump(nn_parameters, file)
 
-        return output
+    @staticmethod
+    def load(file_path: str):
+        with open(file_path, 'r') as file:
+            nn_parameters = json.load(file)
+
+        nn = NeuralNetwork(
+            input_nodes=nn_parameters['input_nodes'],
+            hidden_nodes=nn_parameters['hidden_nodes'],
+            output_nodes=nn_parameters['output_nodes'],
+            learning_rate=nn_parameters['learning_rate']
+        )
+
+        nn.weights_input_to_hidden.data = nn_parameters['weights_input_to_hidden']
+        nn.weights_hidden_to_output.data = nn_parameters['weights_hidden_to_output']
+        nn.bias_input_to_hidden.data = nn_parameters['bias_input_to_hidden']
+        nn.bias_hidden_to_output.data = nn_parameters['bias_hidden_to_output']
+
+        return nn
