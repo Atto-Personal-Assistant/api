@@ -57,8 +57,6 @@ class NeuralNetwork:
 
         # OUTPUT -> HIDDEN #
         expected = Matrix.array_to_matrix(input_arr_expected)
-        print("expected", expected.data)
-        print("output", output.data)
         output_error = Matrix.subtract(expected, output)
         derivative_output = Matrix.static_map(output, derivative_sigmoid)
 
@@ -104,8 +102,7 @@ class NeuralNetwork:
     def predict(self, input_arr):
         output, _, __ = self.feed_forward(input_arr)
 
-        print("data", output.data)
-        return output.data
+        return output
 
     def save(self, file_path: str):
         nn_parameters = {

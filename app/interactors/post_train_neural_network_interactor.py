@@ -50,43 +50,76 @@ class PostTrainNeuralNetworkInteractor:
             file.write(bytes_audio)
 
     @staticmethod
-    def _load_audio(file_path: str):
-        try:
-            signal, simple_rate = librosa.load(file_path)
-            number_dimensions = signal.ndim
-            return signal, simple_rate, number_dimensions
+    def pre_process(text: str, expected_len: int = 0):
+        letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+                   'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+        numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+        spacial_char = [" ", "!", "?", ",", "."]
 
-        except Exception as error:
-            print("Erro ao carregar o arquivo de áudio:", error)
+        chars = letters + numbers + spacial_char
+        range_char = len(chars) / 1000
+        text_uppercase = text.upper()
+
+        text_converted = []
+
+        for word in text_uppercase:
+            letters_converted = [(chars.index(letter) * range_char) for index, letter in enumerate(word)]
+            text_converted += letters_converted
+
+        if expected_len == 0 or len(text_converted) == expected_len:
+            return text_converted
+
+        text_converted_with_more_len = text_converted + [0 for _ in range(expected_len)]
+
+        return text_converted_with_more_len
+
+    def pos_process(self, text: list[float]):
+        print("text pos", text)
+
+        letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+                   'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+        numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+        spacial_char = [" ", "!", "?", ",", "."]
+
+        chars = letters + numbers + spacial_char
+        range_char = len(chars) / 1000
+        list_range_char = [idx * range_char for idx, w in enumerate(chars)]
+
+        text_converted = ""
+
+        for num in text:
+            current_letter_range = self.round_to_nearest(num, list_range_char)
+
+            for idx, letter in enumerate(letters):
+                letter_range = idx * range_char
+                if letter_range == current_letter_range:
+                    letter_found = letter
+                    text_converted += letter_found
+
+        return text_converted
 
     @staticmethod
-    def extract_mfcc(
-            signal,
-            simple_rate,
-            n_mfcc: int = 13):
-        mfccs = librosa.feature.mfcc(
-            y=signal,
-            n_mfcc=n_mfcc,
-            sr=simple_rate,
-        )
-        return np.mean(mfccs.T, axis=0)
+    def round_to_nearest(value, numbers):
+        if not numbers:
+            return None
 
-    @staticmethod
-    def normalize_values(arr):
-        arr = np.array(arr)
-        min_val = np.min(arr)
-        max_val = np.max(arr)
-        return (arr - min_val) / (max_val - min_val)
+        nearest = numbers[0]
+
+        for num in numbers:
+            if abs(num - value) < abs(nearest - value):
+                nearest = num
+
+        return nearest
 
     @staticmethod
     def _train_neural_network(
             input_nodes: int,
             hidden_nodes: int,
             output_nodes: int,
-            input_list_audio_normalized: list[int],
-            output_list_audio_normalized: list[int],):
+            intput: list[float],
+            output: list[float],):
         neural_network = NeuralNetwork(input_nodes, hidden_nodes, output_nodes)
-        neural_network.train(input_list_audio_normalized, output_list_audio_normalized)
+        neural_network.train(intput, output)
         return neural_network
 
     def run(self):
@@ -97,26 +130,33 @@ class PostTrainNeuralNetworkInteractor:
             self._mount_path_to_voice_folder(
                 self.request.output_file_fullname), self.request.output_audio_bytes,)
 
-        input_signal, input_simple_rate, input_number_dimensions = self._load_audio(
-            self._mount_path_to_voice_folder(
-                self.request.input_file_fullname,))
-        output_signal, output_simple_rate, output_number_dimensions = self._load_audio(
-            self._mount_path_to_voice_folder(
-                self.request.output_file_fullname,))
+        input_text = self.request.audio_interactor.transcribe(
+            self._mount_path_to_voice_folder(self.request.input_file_fullname),)
 
-        input_list_audio = self.extract_mfcc(input_signal, input_simple_rate,)
-        output_list_audio = self.extract_mfcc(output_signal, output_simple_rate,)
+        output_text = self.request.audio_interactor.transcribe(
+            self._mount_path_to_voice_folder(self.request.output_file_fullname),)
 
-        input_list_audio_normalized = self.normalize_values(input_list_audio)
-        output_list_audio_normalized = self.normalize_values(output_list_audio)
+        calc_fill_input = (len(output_text) - len(input_text))
+        calc_fill_output = (len(input_text) - len(output_text))
+
+        filled_input = 0 if len(input_text) > len(output_text) else calc_fill_input
+        filled_output = 0 if len(output_text) > len(input_text) else calc_fill_output
+
+        intput = self.pre_process(text=input_text, expected_len=filled_input)
+        output = self.pre_process(text=output_text, expected_len=filled_output)
 
         neural_network = self._train_neural_network(
-            input_nodes=input_number_dimensions,
-            hidden_nodes=10,
-            output_nodes=len(output_list_audio_normalized),
-            input_list_audio_normalized=input_list_audio_normalized,
-            output_list_audio_normalized=output_list_audio_normalized,
+            input_nodes=len(output_text),
+            hidden_nodes=len(output_text),
+            output_nodes=len(output_text),
+            intput=intput,
+            output=output,
         )
+        nn = neural_network.predict(intput)
+
+        result = nn.matrix_to_array(nn)
+        response_text = self.pos_process(result)
+        print("response_text", response_text)
 
         neural_network.save(file_path=self._mount_path_to_voice_folder('neural_network'))
 

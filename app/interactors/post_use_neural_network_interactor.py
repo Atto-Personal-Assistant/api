@@ -56,7 +56,7 @@ class PostUseNeuralNetworkInteractor:
     def extract_mfcc(
             signal,
             simple_rate,
-            n_mfcc: int = 13):
+            n_mfcc: int = 20):
         mfccs = librosa.feature.mfcc(
             y=signal,
             n_mfcc=n_mfcc,
@@ -77,7 +77,10 @@ class PostUseNeuralNetworkInteractor:
 
     def _use_neural_network(self,
                             sample_rate: int,
-                            list_inputs: list[int],):
+                            list_inputs: list[int],
+                            n_mels: int = 20,
+                            n_fft: int = 2048,
+                            hop_length: int = 512,):
         neural_network = NeuralNetwork.load(file_path=self._mount_path_to_voice_folder('neural_network'))
         outputs_predict_mfccs = neural_network.predict(list_inputs)
 
@@ -85,16 +88,39 @@ class PostUseNeuralNetworkInteractor:
             f'{self.request.file_name}_response.{self.request.file_type}',
         )
         outputs_predict_mfccs_2d = np.array(outputs_predict_mfccs)
+        outputs_predict_mfccs_2d = outputs_predict_mfccs_2d.T if (outputs_predict_mfccs_2d.shape[0] <
+                                                                  outputs_predict_mfccs_2d.shape[
+                                                                           1]) else outputs_predict_mfccs_2d
 
-        mfcc_dct = librosa.feature.inverse.mfcc_to_mel(outputs_predict_mfccs_2d, n_mels=20)
+        print("outputs_predict_mfccs_2d", outputs_predict_mfccs_2d)
+
+
+        # Reverter a transformação DCT
+        mfcc_dct = librosa.feature.inverse.mfcc_to_mel(outputs_predict_mfccs_2d, n_mels=n_mels)
+
+        print("mfcc_dct", mfcc_dct)
+
+        # Exponenciar os resultados para reverter o logaritmo
+        mfcc_dct_exp = np.exp(mfcc_dct)
+
+        print("mfcc_dct_exp", mfcc_dct_exp)
 
         # Aplicar a inversa da escala de frequência de Mel
-        mel_basis = librosa.filters.mel(sample_rate, n_fft=2048, n_mels=20)
+        mel_basis = librosa.filters.mel(sample_rate, n_fft=n_fft, n_mels=n_mels)
         inv_mel_basis = np.linalg.pinv(mel_basis)
-        mel_space = np.dot(inv_mel_basis, mfcc_dct)
+        mel_space = np.dot(inv_mel_basis, mfcc_dct_exp)
+
+        print("mel_space", mel_space)
 
         # Aplicar a transformada de Fourier inversa (IFT) para obter o sinal de áudio no domínio do tempo
-        audio_signal = librosa.feature.inverse.mel_to_audio(mel_space, sr=sample_rate)
+        audio_signal = librosa.feature.inverse.mel_to_audio(
+            M=mel_space,
+            sr=sample_rate,
+            n_fft=n_fft,
+            hop_length=hop_length,
+        )
+
+        print("audio_signal", audio_signal)
 
         # Escrever o sinal de áudio reconstruído em um arquivo
         sf.write(file_fullname, audio_signal, sample_rate, format=self.request.file_type)
@@ -108,6 +134,7 @@ class PostUseNeuralNetworkInteractor:
             ),
             self.request.bytes_audio,
         )
+
         signal, simple_rate, number_dimensions = self._load_audio(
             self._mount_path_to_voice_folder(
                 self.request.file_fullname,
