@@ -1,69 +1,49 @@
 import librosa
 import numpy as np
 
-
 from app.interactors.neural_network_interactor import NeuralNetwork
 from app.interactors.audio_interactor import AudioInteractor
 
 
 class PostTrainNeuralNetworkResponseModel:
-    def __init__(self):
-        pass
+    def __init__(self,  response: str):
+        self.response = response
 
     def __call__(self):
-        return {}
+        return {
+            "response": self.response
+        }
 
 
 class PostTrainNeuralNetworkRequestModel:
     def __init__(
             self,
             audio_interactor: AudioInteractor,
-            input_audio_bytes: bytes,
-            output_audio_bytes: bytes,
+            input: str,
+            output: str,
     ):
         self.audio_interactor = audio_interactor
-        self.input_audio_bytes = input_audio_bytes
-        self.output_audio_bytes = output_audio_bytes
-
-        self.input_file_name = "input_train_audio"
-        self.input_file_type = "wav"
-        self.input_file_fullname = f'{self.input_file_name}.{self.input_file_type}'
-
-        self.output_file_name = "output_train_audio"
-        self.output_file_type = "wav"
-        self.output_file_fullname = f'{self.output_file_name}.{self.output_file_type}'
+        self.input = input
+        self.output = output
 
 
 class PostTrainNeuralNetworkInteractor:
     def __init__(self, request: PostTrainNeuralNetworkRequestModel):
         self.request = request
+        self.letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+                        'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+        self.numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+        self.spacial_char = [" ", "!", "?", ",", "."]
+        self.chars = self.letters + self.numbers + self.spacial_char
 
-    @staticmethod
-    def _mount_path_to_voice_folder(url: str):
-        return f'static/{url}'
-
-    @staticmethod
-    def _save_audio(
-            file_path: str,
-            bytes_audio: bytes,):
-        with open(file_path, "wb") as file:
-            file.write(bytes_audio)
-
-    @staticmethod
-    def pre_process(text: str, expected_len: int = 0):
-        letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
-                   'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-        numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-        spacial_char = [" ", "!", "?", ",", "."]
-
-        chars = letters + numbers + spacial_char
-        range_char = len(chars) / 1000
+    def pre_process(self, text: str, expected_len: int = 0):
+        range_char = len(self.chars) / 1000
         text_uppercase = text.upper()
 
         text_converted = []
 
         for word in text_uppercase:
-            letters_converted = [(chars.index(letter) * range_char) for index, letter in enumerate(word)]
+            letters_converted = [(self.chars.index(letter) * range_char) for index, letter in enumerate(word)]
             text_converted += letters_converted
 
         if expected_len == 0 or len(text_converted) == expected_len:
@@ -74,23 +54,15 @@ class PostTrainNeuralNetworkInteractor:
         return text_converted_with_more_len
 
     def pos_process(self, text: list[float]):
-        print("text pos", text)
-
-        letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
-                   'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-        numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-        spacial_char = [" ", "!", "?", ",", "."]
-
-        chars = letters + numbers + spacial_char
-        range_char = len(chars) / 1000
-        list_range_char = [idx * range_char for idx, w in enumerate(chars)]
+        range_char = len(self.chars) / 1000
+        list_range_char = [idx * range_char for idx, w in enumerate(self.chars)]
 
         text_converted = ""
 
         for num in text:
             current_letter_range = self.round_to_nearest(num, list_range_char)
 
-            for idx, letter in enumerate(letters):
+            for idx, letter in enumerate(self.letters):
                 letter_range = idx * range_char
                 if letter_range == current_letter_range:
                     letter_found = letter
@@ -117,24 +89,17 @@ class PostTrainNeuralNetworkInteractor:
             hidden_nodes: int,
             output_nodes: int,
             intput: list[float],
-            output: list[float],):
+            output: list[float], ):
         neural_network = NeuralNetwork(input_nodes, hidden_nodes, output_nodes)
         neural_network.train(intput, output)
         return neural_network
 
     def run(self):
-        self._save_audio(
-            self._mount_path_to_voice_folder(
-                self.request.input_file_fullname), self.request.input_audio_bytes,)
-        self._save_audio(
-            self._mount_path_to_voice_folder(
-                self.request.output_file_fullname), self.request.output_audio_bytes,)
+        input_text = self.request.input
+        output_text = self.request.output
 
-        input_text = self.request.audio_interactor.transcribe(
-            self._mount_path_to_voice_folder(self.request.input_file_fullname),)
-
-        output_text = self.request.audio_interactor.transcribe(
-            self._mount_path_to_voice_folder(self.request.output_file_fullname),)
+        print("input_text", input_text)
+        print("output_text", output_text)
 
         calc_fill_input = (len(output_text) - len(input_text))
         calc_fill_output = (len(input_text) - len(output_text))
@@ -152,13 +117,17 @@ class PostTrainNeuralNetworkInteractor:
             intput=intput,
             output=output,
         )
+        print("intput", intput)
+        print("output", output)
         nn = neural_network.predict(intput)
 
         result = nn.matrix_to_array(nn)
         response_text = self.pos_process(result)
+
+        print("result", result)
         print("response_text", response_text)
 
-        neural_network.save(file_path=self._mount_path_to_voice_folder('neural_network'))
+        neural_network.save(file_path='neural_network')
 
-        response = PostTrainNeuralNetworkResponseModel()
+        response = PostTrainNeuralNetworkResponseModel(response_text)
         return response

@@ -2,9 +2,6 @@ from typing import Dict
 
 from fastapi import APIRouter, UploadFile, File
 
-from app.interactors.neural_network_interactor import (
-    NeuralNetwork,
-)
 from app.interactors.audio_interactor import (
     AudioInteractor,
 )
@@ -16,7 +13,7 @@ from app.interactors.post_use_neural_network_interactor import (
     PostUseNeuralNetworkRequestModel,
     PostUseNeuralNetworkInteractor,
 )
-
+from app.schemas.neural_network_schemas import RequestTrainNeuralNetwork
 
 router = APIRouter(prefix="/neural-network")
 
@@ -36,15 +33,10 @@ async def post_use_neural_network(audio: UploadFile = File(...)) -> Dict[str, st
 
 
 @router.post("/train")
-async def post_train_neural_network(
-        input_audio: UploadFile = File(...),
-        output_audio: UploadFile = File(...),):
-    input_audio_bytes = await input_audio.read()
-    output_audio_bytes = await output_audio.read()
-
+async def post_train_neural_network(request: RequestTrainNeuralNetwork):
     request = PostTrainNeuralNetworkRequestModel(
-        input_audio_bytes=input_audio_bytes,
-        output_audio_bytes=output_audio_bytes,
+        input=request.input,
+        output=request.output,
         audio_interactor=AudioInteractor(),
     )
     interactor = PostTrainNeuralNetworkInteractor(request)
