@@ -1,156 +1,103 @@
-import librosa
-import numpy as np
-import soundfile as sf
+import json
 
-
+from app.interactors.matrix_interactor import Matrix
 from app.interactors.neural_network_interactor import NeuralNetwork
 from app.interactors.audio_interactor import AudioInteractor
 
 
 class PostUseNeuralNetworkResponseModel:
-    def __init__(self, file_path: str):
-        self.file_path = file_path
+    def __init__(self, response: str):
+        self.response = response
 
     def __call__(self):
-        return {"file_path": self.file_path}
+        return {"response": self.response}
 
 
 class PostUseNeuralNetworkRequestModel:
     def __init__(self,
-                 audio_interactor: AudioInteractor,
-                 bytes_audio: bytes,):
-        self.audio_interactor = audio_interactor
-        self.bytes_audio = bytes_audio
-        self.file_name = "audio"
-        self.file_type = "wav"
-        self.file_fullname = f'{self.file_name}.{self.file_type}'
-        self.sample_rate = 44100
+                 input_message: str,):
+        self.input_message = input_message
 
 
 class PostUseNeuralNetworkInteractor:
     def __init__(self, request: PostUseNeuralNetworkRequestModel):
         self.request = request
+        self.letters = ['A', 'Á', 'Ã', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+                        'O', 'Ó', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+        self.numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+        self.spacial_char = [" ", "!", "?", ",", "."]
+        self.chars = self.letters + self.numbers + self.spacial_char
+        self.range_char = 1 / len(self.chars)
+        self.list_range_char = [idx * self.range_char for idx, w in enumerate(self.chars)]
+        self.max_length_char = 300
+
+    def pre_process(self, text: str, expected_len: int = 0):
+        text_uppercase = text.upper()
+
+        text_converted = []
+
+        for word in text_uppercase:
+            letters_converted = [(self.chars.index(letter) * self.range_char) for index, letter in enumerate(word)]
+            text_converted += letters_converted
+
+        if expected_len == 0 or len(text_converted) == expected_len:
+            return text_converted
+
+        text_converted_with_more_len = text_converted + [
+            (self.chars.index(self.spacial_char[0])) * self.range_char
+            for _ in range(expected_len)]
+
+        return text_converted_with_more_len
+
+    def pos_process(self, array_num: list[float]):
+        text_converted = ""
+
+        for num in array_num:
+            approximate_num = self.round_to_nearest(num, self.list_range_char)
+
+            for idx, letter in enumerate(self.chars):
+                letter_range_num = idx * self.range_char
+                if letter_range_num == approximate_num:
+                    letter_found = letter
+                    text_converted += letter_found
+
+        return text_converted
 
     @staticmethod
-    def _mount_path_to_voice_folder(url: str):
-        return f'static/{url}'
+    def round_to_nearest(value, numbers):
+        if not numbers:
+            return None
 
-    @staticmethod
-    def _save_audio(
-            file_path: str,
-            bytes_audio: bytes,):
-        with open(file_path, "wb") as file:
-            file.write(bytes_audio)
+        nearest = numbers[0]
 
-    @staticmethod
-    def _load_audio(file_fullname: str):
-        try:
-            signal, simple_rate = librosa.load(file_fullname)
-            number_dimensions = signal.ndim
-            return signal, simple_rate, number_dimensions
+        for num in numbers:
+            if abs(num - value) < abs(nearest - value):
+                nearest = num
 
-        except Exception as error:
-            print("Erro ao carregar o arquivo de áudio:", error)
+        return nearest
 
-    @staticmethod
-    def extract_mfcc(
-            signal,
-            simple_rate,
-            n_mfcc: int = 20):
-        mfccs = librosa.feature.mfcc(
-            y=signal,
-            n_mfcc=n_mfcc,
-            sr=simple_rate,
+    def _use_neural_network(self, input_arr: list[float]):
+        neural_network = NeuralNetwork(
+            input_nodes=self.max_length_char,
+            hidden_nodes=self.max_length_char,
+            output_nodes=self.max_length_char,
         )
-        return np.mean(mfccs.T, axis=0)
-
-    @staticmethod
-    def normalize_values(arr):
-        arr = np.array(arr)
-        min_val = np.min(arr)
-        max_val = np.max(arr)
-        return (arr - min_val) / (max_val - min_val)
-
-    @staticmethod
-    def _scale_values(arr):
-        return np.array(arr) * 2 - 1
-
-    def _use_neural_network(self,
-                            sample_rate: int,
-                            list_inputs: list[int],
-                            n_mels: int = 20,
-                            n_fft: int = 2048,
-                            hop_length: int = 512,):
-        neural_network = NeuralNetwork.load(file_path=self._mount_path_to_voice_folder('neural_network'))
-        outputs_predict_mfccs = neural_network.predict(list_inputs)
-
-        file_fullname = self._mount_path_to_voice_folder(
-            f'{self.request.file_name}_response.{self.request.file_type}',
-        )
-        outputs_predict_mfccs_2d = np.array(outputs_predict_mfccs)
-        outputs_predict_mfccs_2d = outputs_predict_mfccs_2d.T if (outputs_predict_mfccs_2d.shape[0] <
-                                                                  outputs_predict_mfccs_2d.shape[
-                                                                           1]) else outputs_predict_mfccs_2d
-
-        print("outputs_predict_mfccs_2d", outputs_predict_mfccs_2d)
-
-
-        # Reverter a transformação DCT
-        mfcc_dct = librosa.feature.inverse.mfcc_to_mel(outputs_predict_mfccs_2d, n_mels=n_mels)
-
-        print("mfcc_dct", mfcc_dct)
-
-        # Exponenciar os resultados para reverter o logaritmo
-        mfcc_dct_exp = np.exp(mfcc_dct)
-
-        print("mfcc_dct_exp", mfcc_dct_exp)
-
-        # Aplicar a inversa da escala de frequência de Mel
-        mel_basis = librosa.filters.mel(sample_rate, n_fft=n_fft, n_mels=n_mels)
-        inv_mel_basis = np.linalg.pinv(mel_basis)
-        mel_space = np.dot(inv_mel_basis, mfcc_dct_exp)
-
-        print("mel_space", mel_space)
-
-        # Aplicar a transformada de Fourier inversa (IFT) para obter o sinal de áudio no domínio do tempo
-        audio_signal = librosa.feature.inverse.mel_to_audio(
-            M=mel_space,
-            sr=sample_rate,
-            n_fft=n_fft,
-            hop_length=hop_length,
-        )
-
-        print("audio_signal", audio_signal)
-
-        # Escrever o sinal de áudio reconstruído em um arquivo
-        sf.write(file_fullname, audio_signal, sample_rate, format=self.request.file_type)
-
-        return file_fullname
+        loaded_neural_network = neural_network.load('neural_network')
+        output_matrix = loaded_neural_network.predict(input_arr)
+        return output_matrix
 
     def run(self):
-        self._save_audio(
-            self._mount_path_to_voice_folder(
-                self.request.file_fullname,
-            ),
-            self.request.bytes_audio,
-        )
+        input_text = self.request.input_message
 
-        signal, simple_rate, number_dimensions = self._load_audio(
-            self._mount_path_to_voice_folder(
-                self.request.file_fullname,
-            ),
-        )
-        list_audio = self.extract_mfcc(
-            signal,
-            simple_rate,
-        )
-        list_audio_normalized = self.normalize_values(
-            list_audio,
-        )
+        filled_input = (self.max_length_char - len(input_text))
 
-        file_fullname_path = self._use_neural_network(
-            list_inputs=list_audio_normalized,
-            sample_rate=self.request.sample_rate,
-        )
-        response = PostUseNeuralNetworkResponseModel(file_fullname_path)
+        input_arr = self.pre_process(text=input_text, expected_len=filled_input)
+
+        output_matrix = self._use_neural_network(input_arr)
+
+        output_arr = Matrix.matrix_to_array(output_matrix)
+
+        response_message = self.pos_process(output_arr)
+
+        response = PostUseNeuralNetworkResponseModel(response_message)
         return response

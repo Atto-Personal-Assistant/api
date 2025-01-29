@@ -119,10 +119,18 @@ class NeuralNetwork:
         with open(file_path, 'w') as file:
             json.dump(nn_parameters, file)
 
-    @staticmethod
-    def load(file_path: str):
+    def load(self, file_path: str):
         with open(file_path, 'r') as file:
             nn_parameters = json.load(file)
+
+        nn_input = nn_parameters['input_nodes']
+        nn_hidden = nn_parameters['input_nodes']
+        nn_output = nn_parameters['input_nodes']
+        nn_learning_rate = nn_parameters['learning_rate']
+
+        if (nn_input != self.input_nodes or nn_hidden != self.hidden_nodes
+                or nn_output != self.output_nodes or nn_learning_rate != self.learning_rate):
+            return self
 
         nn = NeuralNetwork(
             input_nodes=nn_parameters['input_nodes'],

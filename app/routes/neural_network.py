@@ -13,18 +13,14 @@ from app.interactors.post_use_neural_network_interactor import (
     PostUseNeuralNetworkRequestModel,
     PostUseNeuralNetworkInteractor,
 )
-from app.schemas.neural_network_schemas import RequestTrainNeuralNetwork
+from app.schemas.neural_network_schemas import RequestTrainNeuralNetwork, RequestUseNeuralNetwork
 
 router = APIRouter(prefix="/neural-network")
 
 
 @router.post("/use")
-async def post_use_neural_network(audio: UploadFile = File(...)) -> Dict[str, str]:
-    bytes_audio = await audio.read()
-    request = PostUseNeuralNetworkRequestModel(
-        audio_interactor=AudioInteractor(),
-        bytes_audio=bytes_audio,
-    )
+async def post_use_neural_network(request: RequestUseNeuralNetwork):
+    request = PostUseNeuralNetworkRequestModel(input_message=request.input)
     interactor = PostUseNeuralNetworkInteractor(request)
 
     result = interactor.run()
@@ -35,8 +31,8 @@ async def post_use_neural_network(audio: UploadFile = File(...)) -> Dict[str, st
 @router.post("/train")
 async def post_train_neural_network(request: RequestTrainNeuralNetwork):
     request = PostTrainNeuralNetworkRequestModel(
-        input=request.input,
-        output=request.output,
+        input_message=request.input,
+        output_message=request.output,
         audio_interactor=AudioInteractor(),
     )
     interactor = PostTrainNeuralNetworkInteractor(request)
