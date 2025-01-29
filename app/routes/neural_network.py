@@ -1,5 +1,5 @@
 import requests
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Query
 
 from app.interactors.audio_interactor import (
     AudioInteractor,
@@ -47,9 +47,13 @@ PHONE_NUMBER_ID = "21969998205"
 
 # Endpoint para verificar o webhook
 @router.get("/webhook")
-async def verify_webhook(mode: str, challenge: str, token: str):
-    if mode == "subscribe" and token == VERIFY_TOKEN:
-        return int(challenge)
+async def verify_webhook(
+        hub_mode: str = Query(None, alias="hub.mode"),
+        hub_challenge: str = Query(None, alias="hub.challenge"),
+        hub_verify_token: str = Query(None, alias="hub.verify_token"),Ï
+):
+    if hub_mode == "subscribe" and hub_verify_token == VERIFY_TOKEN:
+        return int(hub_challenge)
     return {"error": "Verificação falhou"}
 
 
