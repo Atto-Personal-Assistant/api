@@ -45,3 +45,4 @@ watchfiles==0.21.0
 websockets==12.0
 resampy==0.4.3
 SpeechRecognition==3.14.0
+discord~=2.3.2
