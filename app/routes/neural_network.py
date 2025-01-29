@@ -1,6 +1,5 @@
-from typing import Dict
-
-from fastapi import APIRouter, UploadFile, File
+import requests
+from fastapi import APIRouter, Request
 
 from app.interactors.audio_interactor import (
     AudioInteractor,
@@ -40,3 +39,55 @@ async def post_train_neural_network(request: RequestTrainNeuralNetwork):
     result = interactor.run()
 
     return result()
+
+VERIFY_TOKEN = "seu_token_de_verificacao"
+ACCESS_TOKEN = "seu_token_de_acesso"
+PHONE_NUMBER_ID = "21969998205"
+
+
+# Endpoint para verificar o webhook
+@router.get("/webhook")
+async def verify_webhook(mode: str, challenge: str, token: str):
+    if mode == "subscribe" and token == VERIFY_TOKEN:
+        return int(challenge)
+    return {"error": "Verificação falhou"}
+
+
+# Endpoint para receber mensagens do WhatsApp
+@router.post("/webhook")
+async def receive_message(request: Request):
+    data = await request.json()
+
+    # Verifica se a mensagem é válida
+    if "entry" in data:
+        for entry in data["entry"]:
+            for change in entry["changes"]:
+                if "messages" in change["value"]:
+                    for message in change["value"]["messages"]:
+                        phone = message["from"]  # Número do remetente
+                        text = message["text"]["body"]  # Texto da mensagem
+
+                        print(f"Mensagem recebida de {phone}: {text}")
+
+                        # Gera uma resposta automática (pode substituir pela rede neural)
+                        resposta = f"Recebi sua mensagem: {text}"
+
+                        send_whatsapp_message(phone, resposta)
+
+    return {"status": "received"}
+
+
+# Função para enviar mensagem no WhatsApp
+def send_whatsapp_message(to, message):
+    url = f"https://graph.facebook.com/v17.0/{PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "text": {"body": message}
+    }
+    response = requests.post(url, json=data, headers=headers)
+    return response.json()
