@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Request, Query
+from starlette.responses import FileResponse
 
 from app.interactors.post_train_neural_network_interactor import (
     PostTrainNeuralNetworkRequestModel,
@@ -79,3 +80,9 @@ async def receive_message_neural_network(request: Request):
     result = interactor.run()
 
     return result()
+
+
+@router.get("/policy-privacy")
+def get_policy():
+    print("herallo")
+    return FileResponse("static/policy_privacy.html")
