@@ -36,17 +36,19 @@ class ReceiveMessageNeuralNetworkInteractor:
 
     @staticmethod
     def get_message(data):
-        if "entry" in data:
-            for entry in data["entry"]:
-                for change in entry["changes"]:
-                    if "messages" in change["value"]:
-                        for message in change["value"]["messages"]:
-                            phone = message["from"]  # Número do remetente
-                            text = message["text"]["body"]  # Texto da mensagem
+        for event in data.get('entry'):
+            for change in event.get('changes'):
+                if change.get('field') == 'messages':
+                    messages = change["value"]["messages"]
 
-                            print(f"Mensagem recebida de {phone}: {text}")
+                    print('=======> messages', messages)
 
-                            return {"status": "received"}
+                    for message in messages:
+                        phone = message["from"]
+                        text = message["text"]["body"]
+
+                        print(f"Message received from {phone}: {text}")
+                        return {"status": "received"}
 
         return {"status": "don't received"}
 
