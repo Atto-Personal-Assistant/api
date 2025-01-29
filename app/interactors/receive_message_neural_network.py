@@ -1,5 +1,4 @@
 import os
-
 import requests
 
 
@@ -8,7 +7,7 @@ class ReceiveMessageNeuralNetworkResponse:
         pass
 
     def __call__(self):
-        pass
+        return {}
 
 
 class ReceiveMessageNeuralNetworkRequestModel:
