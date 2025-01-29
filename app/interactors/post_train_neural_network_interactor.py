@@ -18,9 +18,7 @@ class PostTrainNeuralNetworkRequestModel:
             self,
             input_message: str,
             output_message: str,
-            audio_interactor: AudioInteractor,
     ):
-        self.audio_interactor = audio_interactor
         self.input_message = input_message
         self.output_message = output_message
 
