@@ -1,8 +1,7 @@
 import os
-
+import asyncio
 import discord
 from fastapi import APIRouter
-
 from app.interactors.discord_interactor import (
     MyBotInteractor
 )
@@ -16,5 +15,11 @@ async def verify_webhook_neural_network():
 
 intents = discord.Intents.default()
 intents.messages = True
-client = MyBotInteractor(intents=intents)
-client.run(os.environ['DISCORD_TOKEN_BOT'])
+intents.message_content = True
+
+bot = MyBotInteractor(command_prefix="!", intents=intents)
+
+
+def start_bot():
+    loop = asyncio.get_event_loop()
+    loop.create_task(bot.start(os.environ['DISCORD_TOKEN_BOT']))
