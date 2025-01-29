@@ -2,11 +2,11 @@ import os
 
 
 class VerifyWebhookNeuralNetworkResponse:
-    def __init__(self):
-        pass
+    def __init__(self, challenge: str):
+        self.challenge = challenge
 
     def __call__(self):
-        pass
+        return self.challenge
 
 
 class VerifyWebhookNeuralNetworkRequestModel:
@@ -30,6 +30,6 @@ class VerifyWebhookNeuralNetworkInteractor:
         return {"error": "Verify failed"}
 
     def run(self):
-        self.verify()
-        response = VerifyWebhookNeuralNetworkResponse()
+        challenge = self.verify()
+        response = VerifyWebhookNeuralNetworkResponse(challenge)
         return response

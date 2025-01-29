@@ -84,5 +84,4 @@ async def receive_message_neural_network(request: Request):
 
 @router.get("/policy-privacy")
 def get_policy():
-    print("herallo")
     return FileResponse("static/policy_privacy.html")
