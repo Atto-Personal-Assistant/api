@@ -70,6 +70,7 @@ async def verify_webhook_neural_network(
 @router.post("/webhook")
 async def receive_message_neural_network(request: Request):
     data = await request.json()
+    print("=====>>>> data", data)
 
     request = ReceiveMessageNeuralNetworkRequestModel(
         data=data
