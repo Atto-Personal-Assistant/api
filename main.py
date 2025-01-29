@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes import neural_network
+from app.routes import discord_routes
 
 app = FastAPI(app_name="Atto")
 
@@ -15,5 +16,6 @@ app.add_middleware(
 )
 
 app.include_router(neural_network.router)
+app.include_router(discord_routes.router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
