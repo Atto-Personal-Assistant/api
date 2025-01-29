@@ -31,4 +31,5 @@ class VerifyWebhookNeuralNetworkInteractor:
 
     def run(self):
         self.verify()
-        return VerifyWebhookNeuralNetworkResponse()
+        response = VerifyWebhookNeuralNetworkResponse()
+        return response

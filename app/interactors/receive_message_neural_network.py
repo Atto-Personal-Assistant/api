@@ -53,4 +53,4 @@ class ReceiveMessageNeuralNetworkInteractor:
     def run(self):
         self.get_message(self.request.data)
         response = ReceiveMessageNeuralNetworkResponse()
-        return response()
+        return response
