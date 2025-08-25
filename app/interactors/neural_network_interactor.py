@@ -9,7 +9,7 @@ def sigmoid(x: int, i, j):
 
 
 def derivative_sigmoid(x: int, i, j):
-    return x * (1 - x)
+    return sigmoid(x) * (1 - sigmoid(x))
 
 
 class NeuralNetwork:
