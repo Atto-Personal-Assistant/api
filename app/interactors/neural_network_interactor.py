@@ -4,12 +4,18 @@ import math
 from app.interactors.matrix_interactor import Matrix
 
 
-def sigmoid(x: int, i, j):
-    return 1 / (1 + math.exp(-x))
+def sigmoid(x: float, i=None, j=None):
+    if x >= 0:
+        z = math.exp(-x)
+        return 1 / (1 + z)
+    else:
+        z = math.exp(x)
+        return z / (1 + z)
 
 
-def derivative_sigmoid(x: int, i, j):
-    return sigmoid(x) * (1 - sigmoid(x))
+def derivative_sigmoid(x: float, i=None, j=None):
+    s = sigmoid(x)
+    return s * (1 - s)
 
 
 class NeuralNetwork:
@@ -17,7 +23,7 @@ class NeuralNetwork:
                  input_nodes: int,
                  hidden_nodes: int,
                  output_nodes: int,
-                 learning_rate: int = 0.1,):
+                 learning_rate: int = 0.01,):
         self.input_nodes = input_nodes
         self.hidden_nodes = hidden_nodes
         self.output_nodes = output_nodes
